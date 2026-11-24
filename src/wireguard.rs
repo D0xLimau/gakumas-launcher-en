@@ -46,9 +46,9 @@ impl std::fmt::Debug for WgConfig {
 fn key32(v: &str, what: &str) -> Result<[u8; 32], String> {
     let b = base64::engine::general_purpose::STANDARD
         .decode(v.trim())
-        .map_err(|_| format!("{what} 형식이 올바르지 않습니다"))?;
+        .map_err(|_| format!("{what} format is invalid"))?;
     b.try_into()
-        .map_err(|_| format!("{what} 길이가 올바르지 않습니다"))
+        .map_err(|_| format!("{what} length is invalid"))
 }
 
 impl WgConfig {
@@ -111,21 +111,21 @@ impl WgConfig {
                 _ => {}
             }
         }
-        let (address, prefix_len) = address.ok_or("Address 에 IPv4 주소가 없습니다")?;
-        let endpoint = endpoint.ok_or("Endpoint (서버 주소)가 없습니다")?;
+        let (address, prefix_len) = address.ok_or("Address has no IPv4 address")?;
+        let endpoint = endpoint.ok_or("Endpoint (server address) is missing")?;
         let (host, port) = endpoint
             .rsplit_once(':')
-            .ok_or("Endpoint 에 포트가 없습니다")?;
+            .ok_or("Endpoint port is missing")?;
         Ok(WgConfig {
-            private_key: private_key.ok_or("PrivateKey 가 없습니다")?,
-            peer_public: peer_public.ok_or("[Peer] PublicKey 가 없습니다")?,
+            private_key: private_key.ok_or("PrivateKey is missing")?,
+            peer_public: peer_public.ok_or("[Peer] PublicKey is missing")?,
             preshared,
             address,
             prefix_len,
             endpoint_host: host.trim_matches(|c| c == '[' || c == ']').to_string(),
             endpoint_port: port
                 .parse()
-                .map_err(|_| "Endpoint 포트가 올바르지 않습니다")?,
+                .map_err(|_| "Endpoint port is invalid")?,
             keepalive,
             dns,
             mtu: mtu.map_or(DEFAULT_MTU, |m| {
@@ -150,9 +150,9 @@ impl WgTunnel {
     pub fn connect(cfg: &WgConfig, log: &mut dyn FnMut(String)) -> Result<WgTunnel, String> {
         let peer = (cfg.endpoint_host.as_str(), cfg.endpoint_port)
             .to_socket_addrs()
-            .map_err(|e| format!("{} 주소를 찾지 못했습니다: {e}", cfg.endpoint_host))?
+            .map_err(|e| format!("Could not resolve {}: {e}", cfg.endpoint_host))?
             .min_by_key(|a| !a.is_ipv4())
-            .ok_or_else(|| format!("{} 주소를 찾지 못했습니다", cfg.endpoint_host))?;
+            .ok_or_else(|| format!("Could not resolve {}", cfg.endpoint_host))?;
         let bind: SocketAddr = if peer.is_ipv4() {
             "0.0.0.0:0".parse().unwrap()
         } else {
@@ -195,7 +195,7 @@ impl WgTunnel {
             let now = Instant::now();
             if now >= deadline {
                 return Err(
-                    "WireGuard 서버가 응답하지 않습니다 (키가 맞지 않거나 UDP 가 막혀 있음)".into(),
+                    "WireGuard server is not responding (key mismatch or UDP blocked)".into(),
                 );
             }
             if now >= next_init {
@@ -234,7 +234,7 @@ impl WgTunnel {
                 return Ok(false)
             }
             Err(e) if e.kind() == io::ErrorKind::ConnectionReset => {
-                return Err("WireGuard 서버가 응답하지 않습니다 (UDP 포트 닫힘)".into())
+                return Err("WireGuard server is not responding (UDP port closed)".into())
             }
             Err(e) => return Err(format!("VPN connection: {e}")),
         };
@@ -268,7 +268,7 @@ impl WgTunnel {
                 self.sock.send(p).map_err(|e| format!("VPN send: {e}"))?;
             }
             TunnResult::Err(boringtun::noise::errors::WireGuardError::ConnectionExpired) => {
-                return Err("WireGuard 연결이 끊어졌습니다".into())
+                return Err("WireGuard connection was lost".into())
             }
             _ => {}
         }
