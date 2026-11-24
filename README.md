@@ -1,3 +1,6 @@
+DISCLAIMER: This is just a English Translation for the Applicaiton from a Korean Developer via Ai usage. All Credits goes to their respective owners
+
+
 # Gakuen Idolmaster Launcher
 
 A Windows launcher for running Gakuen Idolmaster (DMM edition) without DMM GAME PLAYER or a manually configured VPN.
